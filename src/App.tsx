@@ -20,8 +20,7 @@ const AppContent: React.FC = () => {
     notifyOrderStatusChange,
     notifyNewOrder
   } = useNotification();
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'new-order' | 'users'>('dashboard');
-  const [isTrackingMode, setIsTrackingMode] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'new-order' | 'users' | 'tracking'>('dashboard');
   const [showPermissionRequest, setShowPermissionRequest] = useState(false);
 
   // URL에서 tracking 모드 확인
