@@ -15,12 +15,33 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 /**
+ * JWT 토큰을 localStorage에서 가져오는 함수
+ */
+const getToken = (): string | null => {
+  return localStorage.getItem('jwt_token');
+};
+
+/**
+ * JWT 토큰을 localStorage에 저장하는 함수
+ */
+const setToken = (token: string): void => {
+  localStorage.setItem('jwt_token', token);
+};
+
+/**
+ * JWT 토큰을 localStorage에서 제거하는 함수
+ */
+const removeToken = (): void => {
+  localStorage.removeItem('jwt_token');
+};
+
+/**
  * Axios 클라이언트 인스턴스 생성
- * 세션 기반 인증을 위한 쿠키 포함 및 기본 설정 적용
+ * JWT 토큰 기반 인증 및 세션 쿠키 포함 (백워드 호환성)
  */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // 세션 쿠키 포함
+  withCredentials: true, // 세션 쿠키 포함 (백워드 호환성)
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -28,13 +49,28 @@ const apiClient = axios.create({
 });
 
 /**
- * 응답 인터셉터 설정 - 인증 오류 처리
+ * 요청 인터셉터 - JWT 토큰 헤더 추가
+ */
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+/**
+ * 응답 인터셉터 설정 - 인증 오류 처리 및 토큰 만료 처리
  */
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // 인증 실패 시 로그인 페이지로 리다이렉트 (필요시)
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // 인증 실패 또는 토큰 만료 시 토큰 제거
+      removeToken();
       console.warn('인증이 필요합니다.');
     }
     return Promise.reject(error);
@@ -67,12 +103,22 @@ export const authAPI = {
   // 로그인
   login: async (data: LoginData) => {
     const response = await apiClient.post('/auth/login', data);
+    
+    // JWT 토큰이 있으면 localStorage에 저장
+    if (response.data.token) {
+      setToken(response.data.token);
+    }
+    
     return response.data;
   },
 
   // 로그아웃
   logout: async () => {
     const response = await apiClient.post('/auth/logout');
+    
+    // JWT 토큰 제거
+    removeToken();
+    
     return response.data;
   },
 
@@ -209,6 +255,16 @@ export const healthCheck = async () => {
     baseURL: import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000'
   });
   return response.data;
+};
+
+/**
+ * JWT 토큰 관리 함수들
+ */
+export const tokenAPI = {
+  getToken,
+  setToken,
+  removeToken,
+  isAuthenticated: (): boolean => !!getToken()
 };
 
 /**
