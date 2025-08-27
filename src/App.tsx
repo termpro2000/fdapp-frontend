@@ -116,7 +116,7 @@ const AppContent: React.FC = () => {
               <button
                 onClick={() => setCurrentPage('tracking' as PageType)}
                 className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors touch-manipulation ${
-                  currentPage === 'tracking'
+                  (currentPage as string) === 'tracking'
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
@@ -218,7 +218,7 @@ const AppContent: React.FC = () => {
             />
           ) : currentPage === 'users' ? (
             <UserManagement />
-          ) : currentPage === 'tracking' ? (
+          ) : (currentPage as string) === 'tracking' ? (
             <TrackingPage onNavigateBack={() => setCurrentPage('dashboard' as PageType)} />
           ) : (
             <>
