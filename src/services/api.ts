@@ -49,13 +49,19 @@ const apiClient = axios.create({
 });
 
 /**
- * 요청 인터셉터 - JWT 토큰 헤더 추가
+ * 요청 인터셉터 - JWT 토큰 헤더 추가 (디버깅 로그 포함)
  */
 apiClient.interceptors.request.use(
   (config) => {
     const token = getToken();
+    console.log('[API Request]', config.method?.toUpperCase(), config.url);
+    console.log('[JWT Token Check]', token ? `토큰 있음: ${token.substring(0, 20)}...` : '토큰 없음');
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('[Authorization Header]', '설정됨');
+    } else {
+      console.log('[Authorization Header]', '설정 안됨 - JWT 토큰 없음');
     }
     return config;
   },
@@ -102,11 +108,22 @@ export const authAPI = {
 
   // 로그인
   login: async (data: LoginData) => {
+    console.log('[Login]', '로그인 요청 시작:', data.username);
     const response = await apiClient.post('/auth/login', data);
+    
+    console.log('[Login Response]', response.data);
     
     // JWT 토큰이 있으면 localStorage에 저장
     if (response.data.token) {
+      console.log('[JWT Token]', `받은 토큰: ${response.data.token.substring(0, 30)}...`);
       setToken(response.data.token);
+      console.log('[JWT Token]', 'localStorage에 저장 완료');
+      
+      // 저장 확인
+      const savedToken = getToken();
+      console.log('[JWT Token Verification]', savedToken ? '저장된 토큰 확인됨' : '저장 실패!');
+    } else {
+      console.log('[JWT Token]', '서버에서 토큰을 받지 못함');
     }
     
     return response.data;
