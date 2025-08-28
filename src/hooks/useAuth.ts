@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import type { User, LoginData, RegisterData } from '../types';
-import { authAPI } from '../services/api';
+import { authAPI, tokenAPI } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -35,24 +35,39 @@ export const useAuthProvider = (): AuthContextType => {
   }, []);
 
   /**
-   * 서버에서 현재 세션 상태를 확인하고 사용자 정보를 가져오는 함수
+   * JWT 토큰 또는 세션 상태를 확인하고 사용자 정보를 가져오는 함수
    */
   const checkSession = async () => {
     try {
       setIsLoading(true);
+      
+      // JWT 토큰이 있는지 먼저 확인
+      if (tokenAPI.isAuthenticated()) {
+        console.log('JWT 토큰이 존재함, 서버에서 사용자 정보 확인');
+      }
+      
       const response = await authAPI.me();
       if (response.authenticated && response.user) {
         setUser(response.user);
+        console.log('사용자 인증 상태 확인됨:', response.user.username);
+      } else {
+        // 토큰이 있지만 서버에서 인증 실패한 경우 토큰 제거
+        if (tokenAPI.isAuthenticated()) {
+          console.log('서버 인증 실패, JWT 토큰 제거');
+          tokenAPI.removeToken();
+        }
       }
     } catch (error) {
-      console.log('세션 없음 또는 만료됨');
+      console.log('인증 실패 - 세션 또는 JWT 토큰 없음/만료됨');
+      // 토큰이 만료되었거나 무효한 경우 제거
+      tokenAPI.removeToken();
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * 사용자 로그인 처리 함수
+   * 사용자 로그인 처리 함수 (JWT 토큰 지원)
    * @param data - 로그인 정보 (사용자명, 비밀번호)
    * @throws {Error} 로그인 실패 시 에러 발생
    */
@@ -61,6 +76,12 @@ export const useAuthProvider = (): AuthContextType => {
       const response = await authAPI.login(data);
       if (response.user) {
         setUser(response.user);
+        console.log('로그인 성공:', response.user.username);
+        
+        // JWT 토큰이 있는 경우 로그 출력
+        if (response.token) {
+          console.log('JWT 토큰 받음, localStorage에 저장됨');
+        }
       }
     } catch (error: any) {
       const message = error.response?.data?.message || '로그인에 실패했습니다.';
@@ -89,16 +110,18 @@ export const useAuthProvider = (): AuthContextType => {
   };
 
   /**
-   * 사용자 로그아웃 처리 함수
+   * 사용자 로그아웃 처리 함수 (JWT 토큰 제거 포함)
    * 서버 오류가 있어도 클라이언트에서는 로그아웃 상태로 처리
    */
   const logout = async () => {
     try {
-      await authAPI.logout();
+      await authAPI.logout(); // 이미 JWT 토큰 제거가 포함됨
       setUser(null);
+      console.log('로그아웃 완료, JWT 토큰 제거됨');
     } catch (error) {
       console.error('로그아웃 오류:', error);
       // 로그아웃은 서버 오류가 있어도 클라이언트에서는 처리
+      tokenAPI.removeToken();
       setUser(null);
     }
   };
